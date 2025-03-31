@@ -8,6 +8,7 @@ import (
 	"github.com/modfin/bellman/models/embed"
 	"github.com/modfin/blot/internal/ai"
 	"github.com/modfin/blot/internal/db"
+	"github.com/modfin/blot/internal/db/vec"
 	"github.com/modfin/clix"
 	"github.com/urfave/cli/v3"
 	"io"
@@ -24,7 +25,7 @@ import (
 func main() {
 
 	defer func() {
-		db.Statistics()
+		vec.Statistics()
 	}()
 
 	cmd := &cli.Command{

@@ -5,7 +5,6 @@ go 1.24.0
 toolchain go1.24.1
 
 require (
-	github.com/goccy/go-json v0.10.5
 	github.com/modfin/bellman v0.11.1
 	github.com/modfin/clix v1.1.1
 	github.com/urfave/cli/v3 v3.1.0
