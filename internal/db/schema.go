@@ -13,9 +13,10 @@ CREATE TABLE IF NOT EXISTS fragments
     content TEXT,
 
     embedding_model TEXT,
-    embedding_vector TEXT,
+    embedding_vector BLOB,
 
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER DEFAULT (strftime('%s', 'now')),
 
     CONSTRAINT unique_lable_name UNIQUE (label, name)
 

@@ -1,87 +1,65 @@
 package vec
 
 import (
-	"errors"
-	"strconv"
+	"fmt"
+	"math"
 )
 
-func unmarshalFloats(jsonStr string) ([]float64, error) {
-	// Avoid trimming the whole string, just check bounds manually
-	startIdx, endIdx := 0, len(jsonStr)-1
+// Manual encoding/decoding implementations without using binary package
+func EncodeFloat64s(floats []float64) []byte {
+	// Allocate a byte slice of the correct size
+	result := make([]byte, len(floats)*8)
 
-	// Skip leading whitespace
-	for startIdx < len(jsonStr) && isWhitespace(jsonStr[startIdx]) {
-		startIdx++
+	for i, f := range floats {
+		// Convert float64 to uint64 bits
+		bits := math.Float64bits(f)
+
+		// Position in the byte slice for this float
+		pos := i * 8
+
+		// Store the uint64 as 8 bytes in little-endian order
+		result[pos+0] = byte(bits)
+		result[pos+1] = byte(bits >> 8)
+		result[pos+2] = byte(bits >> 16)
+		result[pos+3] = byte(bits >> 24)
+		result[pos+4] = byte(bits >> 32)
+		result[pos+5] = byte(bits >> 40)
+		result[pos+6] = byte(bits >> 48)
+		result[pos+7] = byte(bits >> 56)
 	}
 
-	// Skip trailing whitespace
-	for endIdx > startIdx && isWhitespace(jsonStr[endIdx]) {
-		endIdx--
+	return result
+}
+
+func DecodeFloat64s(data []byte) ([]float64, error) {
+	// Check if the data length is divisible by 8
+	if len(data)%8 != 0 {
+		return nil, fmt.Errorf("invalid data length: %d is not divisible by 8", len(data))
 	}
 
-	// Check for array brackets
-	if startIdx >= endIdx || jsonStr[startIdx] != '[' || jsonStr[endIdx] != ']' {
-		return nil, errors.New("input is not a JSON array")
-	}
+	// Calculate the number of float64 values
+	count := len(data) / 8
 
-	// Remove the surrounding brackets
-	startIdx++
-	endIdx--
+	// Create a slice to hold the decoded values
+	result := make([]float64, count)
 
-	// Preallocate result slice - estimate number of values by counting commas
-	commaCount := 0
-	for i := startIdx; i <= endIdx; i++ {
-		if jsonStr[i] == ',' {
-			commaCount++
-		}
-	}
-	result := make([]float64, 0, commaCount+1)
+	for i := 0; i < count; i++ {
+		// Position in the byte slice for this float
+		pos := i * 8
 
-	// Avoid using strings.Builder, use byte slices directly
-	var numStart int
-	inNumber := false
+		// Convert 8 bytes to uint64 in little-endian order
+		bits := uint64(data[pos+0]) |
+			uint64(data[pos+1])<<8 |
+			uint64(data[pos+2])<<16 |
+			uint64(data[pos+3])<<24 |
+			uint64(data[pos+4])<<32 |
+			uint64(data[pos+5])<<40 |
+			uint64(data[pos+6])<<48 |
+			uint64(data[pos+7])<<56
 
-	for i := startIdx; i <= endIdx; i++ {
-		char := jsonStr[i]
-
-		switch {
-		// Digits, decimal point, or signs
-		case char >= '0' && char <= '9' || char == '.' || char == '-' || char == 'e' || char == 'E' || char == '+':
-			if !inNumber {
-				numStart = i
-				inNumber = true
-			}
-
-		// Whitespace or comma
-		case isWhitespace(char) || char == ',':
-			if inNumber {
-				// Parse the number directly from the substring
-				num, err := strconv.ParseFloat(jsonStr[numStart:i], 64)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, num)
-				inNumber = false
-			}
-
-		default:
-			return nil, errors.New("invalid character in JSON array")
-		}
-	}
-
-	// Handle last number if we ended on a number
-	if inNumber {
-		num, err := strconv.ParseFloat(jsonStr[numStart:endIdx+1], 64)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, num)
+		// Convert uint64 bits to float64
+		result[i] = math.Float64frombits(bits)
 	}
 
 	return result, nil
-}
-
-// Inline helper function for whitespace checking
-func isWhitespace(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
