@@ -2,20 +2,13 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"github.com/MatusOllah/slogcolor"
 	"github.com/disintegrator/inv"
 	"github.com/modfin/bellman/models/embed"
-	"github.com/modfin/bellman/models/gen"
-	"github.com/modfin/bellman/prompt"
-	"github.com/modfin/bellman/schema"
 	"github.com/modfin/blot/internal/ai"
-	"github.com/modfin/blot/internal/db"
 	"github.com/modfin/blot/internal/db/vec"
-	"github.com/modfin/clix"
-	"github.com/modfin/henry/slicez"
 	"github.com/urfave/cli/v3"
 	"io"
 	"log/slog"
@@ -23,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -41,12 +33,16 @@ func main() {
 	}()
 
 	cmd := &cli.Command{
-		Name:  "blot",
-		Usage: "a RAG LLM tool to creat a knowledge base from file and then answer questions",
-		Action: func(context.Context, *cli.Command) error {
-			fmt.Println("Nothing to do here yet")
-			return nil
-		},
+		Name:      "blot",
+		UsageText: "blot [global options] command [command options] [arguments...]",
+		Usage: "with a rag, tool to creat a knowledge base from files and\n" +
+			"answer questions about it",
+		Description: `Bolt is a cli rag llm tool that can be used to create a knowledge base from files.
+With the knowledge base, you can search, ask questions and fill / autocomplete a csv file.
+
+blot is based around Bellman https://github.com/modfin/bellman which enables the user to pick an choose what
+llm and embedding models to use from implemented vendors, ie. OpenAI, VertexAI, Anthropic and VoyageAI or a Bellman proxy.
+`,
 
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -126,7 +122,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:      "explode",
-				Usage:     "takes a row based file and explodes it into one per row in the file",
+				Usage:     "takes a row based file and explodes it into one file per row in the file",
 				ArgsUsage: "<file>",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -151,13 +147,12 @@ func main() {
 					dir := cmd.String("out")
 
 					for _, file := range cmd.Args().Slice() {
+						dir := dir
 
 						base := filepath.Base(file)
-						out := base + ".exploded"
-						if dir != "" {
-							out = dir
+						if dir == "" {
+							dir = filepath.Join(filepath.Dir(file), base+".exploded")
 						}
-						dir := filepath.Join(filepath.Dir(file), out)
 
 						err := os.MkdirAll(dir, 0755)
 						if err != nil {
@@ -241,31 +236,13 @@ func main() {
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 
-					config := clix.ParseCommand[ai.Config](cmd)
-					proxy, err := ai.New(config, slog.Default())
+					cfg, err := ai.LoadConf(ctx, cmd)
 					if err != nil {
-						return fmt.Errorf("failed to create proxy: %w", err)
+						return fmt.Errorf("failed to load config: %w", err)
 					}
 
-					conn, err := sql.Open("sqlite", cmd.String("db"))
-					if err != nil {
-						return fmt.Errorf("failed to open database file, %s: %w", "file://"+cmd.String("db"), err)
-					}
-
-					_, err = conn.ExecContext(ctx, db.Schema)
-					if err != nil {
-						return fmt.Errorf("failed to create schema: %w", err)
-					}
-					queries := db.New(conn)
-
-					embeddingModel := cmd.String("embed-model")
-					provider, modelName, _ := strings.Cut(embeddingModel, "/")
-					slog.Default().Debug("embedding", "provider", provider, "model", modelName)
-					model := embed.Model{
-						Provider: provider,
-						Name:     modelName,
-						Type:     embed.TypeDocument,
-					}
+					model := cfg.EmbedModel
+					model.Type = embed.TypeDocument
 
 					for _, f := range cmd.Args().Slice() {
 						logger := slog.Default().With("file", f)
@@ -287,7 +264,7 @@ func main() {
 						name := filepath.Clean(f)
 						content := string(data)
 
-						dirty, err := queries.DirtyFragment(ctx, label, name, content)
+						dirty, err := cfg.Dao.DirtyFragment(ctx, label, name, content)
 						if err != nil {
 							return fmt.Errorf("failed to check if fragment is dirty: %w", err)
 						}
@@ -296,9 +273,9 @@ func main() {
 							continue
 						}
 
-						logger.With("name", name, "label", label)
+						logger = logger.With("name", name, "label", label)
 						logger.Debug("embedding file", "len", len(content))
-						resp, err := proxy.Embed(embed.Request{
+						resp, err := cfg.Proxy.Embed(embed.Request{
 							Ctx:   ctx,
 							Model: model,
 							Text:  content,
@@ -310,11 +287,11 @@ func main() {
 						embeddingVector := resp.AsFloat64()
 
 						logger.Debug("adding embedding to database")
-						frag, err := queries.AddFragment(context.Background(),
+						frag, err := cfg.Dao.AddFragment(context.Background(),
 							label,
 							name,
 							content,
-							embeddingModel,
+							model.String(),
 							embeddingVector,
 						)
 
@@ -323,7 +300,7 @@ func main() {
 						}
 
 						inv.Require("resulting embedding must mach original",
-							"vecors shall be equal", reflect.DeepEqual(embeddingVector, frag.EmbeddingVector))
+							"vectors shall be equal", reflect.DeepEqual(embeddingVector, frag.EmbeddingVector))
 
 						logger.Info("Added fragment", "id", frag.ID)
 					}
@@ -334,7 +311,7 @@ func main() {
 
 			{
 				Name:  "search",
-				Usage: "search the knowledge base for documents",
+				Usage: "Search the knowledge base for documents",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name: "emit",
@@ -351,18 +328,22 @@ func main() {
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 
-					query := strings.Join(cmd.Args().Slice(), " ")
-					fragments, err := search(ctx, cmd, query)
+					cfg, err := ai.LoadConf(ctx, cmd)
+					if err != nil {
+						return fmt.Errorf("failed to load config: %w", err)
+					}
+
+					question := strings.Join(cmd.Args().Slice(), " ")
+					fragments, err := ai.Search(cfg, question)
 
 					if err != nil {
-						return fmt.Errorf("failed to search: %w", err)
+						return fmt.Errorf("failed to Search: %w", err)
 					}
 					for _, frag := range fragments {
 						slog.Default().Debug("Found fragment", "id", frag.ID, "label", frag.Label, "name", frag.Name)
 						fmt.Println(frag.Name)
 						if cmd.Bool("emit") {
 							fmt.Println(frag.Content)
-							fmt.Println()
 						}
 					}
 
@@ -390,65 +371,22 @@ func main() {
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 
-					query := strings.Join(cmd.Args().Slice(), " ")
-					fragments, err := search(ctx, cmd, query)
-
+					cfg, err := ai.LoadConf(ctx, cmd)
 					if err != nil {
-						return fmt.Errorf("failed to search: %w", err)
+						return fmt.Errorf("failed to load config: %w", err)
 					}
+					question := strings.Join(cmd.Args().Slice(), " ")
 
-					config := clix.ParseCommand[ai.Config](cmd)
-					proxy, err := ai.New(config, slog.Default())
+					ans, err := ai.Query(cfg, question)
 					if err != nil {
-						return fmt.Errorf("failed to create proxy: %w", err)
+						return fmt.Errorf("failed to Query: %w", err)
 					}
 
-					llmModel := cmd.String("llm-model")
-					if llmModel == "" {
-						return fmt.Errorf("llm-model is not set, use --llm-model")
-					}
-
-					provider, modelName, _ := strings.Cut(llmModel, "/")
-					slog.Default().Debug("llm", "provider", provider, "model", modelName)
-					model := gen.Model{
-						Provider: provider,
-						Name:     modelName,
-					}
-					llm, err := proxy.Gen(model)
-					if err != nil {
-						return fmt.Errorf("failed to create llm: %w", err)
-					}
-
-					prompts := slicez.Map(fragments, func(frag db.Fragment) prompt.Prompt {
-						return prompt.Prompt{
-							Role: prompt.UserRole,
-							Text: fmt.Sprintf("<%s-document> %s </%s-document>", frag.Label, frag.Content, frag.Label),
-						}
-					})
-
-					res, err := llm.Model(model).
-						System(cmd.String("system-prompt")).
-						Output(schema.From(ai.Answer{})).
-						Prompt(append(prompts, prompt.Prompt{
-							Role: prompt.UserRole,
-							Text: fmt.Sprintf("<user-question> %s </user-question>", query),
-						})...)
-
-					if err != nil {
-						return fmt.Errorf("failed to generate response: %w", err)
-					}
-
-					var ans ai.Answer
-					err = res.Unmarshal(&ans)
-					if err != nil {
-						return fmt.Errorf("failed to unmarshal response: %w", err)
-					}
-
-					slog.Default().Info("llm statistics",
-						"tokens-input", res.Metadata.InputTokens,
-						"tokens-output", res.Metadata.OutputTokens,
-						"tokens-total", res.Metadata.TotalTokens,
-						"model", res.Metadata.Model,
+					slog.Default().Debug("llm statistics",
+						"tokens-input", ans.Metadata.InputTokens,
+						"tokens-output", ans.Metadata.OutputTokens,
+						"tokens-total", ans.Metadata.TotalTokens,
+						"model", ans.Metadata.Model,
 						"confidence", ans.ConfidenceScore,
 					)
 
@@ -457,78 +395,60 @@ func main() {
 					return nil
 				},
 			},
+			{
+				Name: "fill",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "in",
+						Usage:   "the input file",
+						Sources: cli.EnvVars("BLOT_IN"),
+					},
+					&cli.StringFlag{
+						Name:    "out",
+						Usage:   "the output file",
+						Sources: cli.EnvVars("BLOT_OUT"),
+					},
+					&cli.StringFlag{
+						Name:    "delimiter",
+						Aliases: []string{"d"},
+						Value:   "\\t",
+						Usage:   "delimiter for separating columns",
+						Sources: cli.EnvVars("BLOT_DELIMITER"),
+					},
+					&cli.BoolFlag{
+						Name:    "with-headers",
+						Sources: cli.EnvVars("BLOT_WITH_HEADERS"),
+					},
+					&cli.StringFlag{
+						Name:    "system-prompt",
+						Usage:   "the system prompt to use that will be used for the prompt when RAGing.",
+						Sources: cli.EnvVars("BLOT_SYSTEM_PROMPT"),
+					},
+					&cli.StringSliceFlag{
+						Name: "limit",
+						Usage: "the maximum number of documents to that is used for the prompt when RAGing. \n" +
+							"eg. --limit=5, but can be further broken down by label.\n" +
+							"--limit=QA:3 --limit=policies:2 --limit=procedures:1. \n" +
+							"Resulting in 6 fragments returned ",
+						Value:   []string{"5"},
+						Sources: cli.EnvVars("BLOT_LIMIT"),
+					},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+
+					cfg, err := ai.LoadConf(ctx, cmd)
+					if err != nil {
+						return fmt.Errorf("failed to load config: %w", err)
+					}
+
+					return ai.Fill(cfg)
+
+				},
+			},
 		},
 	}
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		slog.Default().Error("got error running blot", "err", err)
 	}
-}
-
-func search(ctx context.Context, cmd *cli.Command, query string) ([]db.Fragment, error) {
-	config := clix.ParseCommand[ai.Config](cmd)
-	proxy, err := ai.New(config, slog.Default())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create proxy: %w", err)
-	}
-
-	conn, err := sql.Open("sqlite", cmd.String("db"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database file, %s: %w", "file://"+cmd.String("db"), err)
-	}
-
-	_, err = conn.ExecContext(ctx, db.Schema)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create schema: %w", err)
-	}
-	queries := db.New(conn)
-
-	embeddingModel := cmd.String("embed-model")
-	provider, modelName, _ := strings.Cut(embeddingModel, "/")
-	slog.Default().Debug("embedding", "provider", provider, "model", modelName)
-	model := embed.Model{
-		Provider: provider,
-		Name:     modelName,
-		Type:     embed.TypeQuery,
-	}
-
-	resp, err := proxy.Embed(embed.Request{
-		Ctx:   ctx,
-		Model: model,
-		Text:  query,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to embed: %w", err)
-	}
-
-	vector := resp.AsFloat64()
-
-	var fragments []db.Fragment
-	for _, lim := range cmd.StringSlice("limit") {
-		label, strlimit, found := strings.Cut(lim, ":")
-		if !found {
-			strlimit = label
-			label = "%"
-		}
-
-		limit, err := strconv.Atoi(strlimit)
-		if err != nil {
-			slog.Default().Warn("failed to parse limit, defaulting to 5", "err", err)
-			limit = 5
-		}
-
-		slog.Default().Debug("searching for fragments", "label", label, "limit", limit)
-
-		frags, err := queries.KNN(ctx, vector, label, int64(limit))
-		if err != nil {
-			return nil, fmt.Errorf("failed knn to query database : %w", err)
-		}
-
-		fragments = append(fragments, frags...)
-	}
-
-	return slicez.UniqBy(fragments, func(a db.Fragment) int64 {
-		return a.ID
-	}), nil
-
 }

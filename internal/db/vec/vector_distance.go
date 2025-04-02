@@ -53,12 +53,12 @@ func init() {
 
 		unmarshalStart := time.Now()
 
-		left, err := DecodeFloat64s(leftbin)
+		left, err := DecodeVector(leftbin)
 		if err != nil {
 			return nil, err
 		}
 
-		right, err := DecodeFloat64s(rightbin)
+		right, err := DecodeVector(rightbin)
 		if err != nil {
 			return nil, err
 		}

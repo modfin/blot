@@ -31,7 +31,7 @@ RETURNING id, label, name, content, embedding_model, embedding_vector, created_a
 		name,
 		content,
 		embeddingModel,
-		vec.EncodeFloat64s(embeddingVector),
+		vec.EncodeVector(embeddingVector),
 	)
 
 	var i Fragment
@@ -49,7 +49,7 @@ RETURNING id, label, name, content, embedding_model, embedding_vector, created_a
 	if err != nil {
 		return Fragment{}, fmt.Errorf("insert fragment: %w", err)
 	}
-	i.EmbeddingVector, err = vec.DecodeFloat64s(vecbin)
+	i.EmbeddingVector, err = vec.DecodeVector(vecbin)
 	if err != nil {
 		return Fragment{}, fmt.Errorf("decoding embedding vector: %w", err)
 	}
@@ -77,7 +77,7 @@ func (q *Queries) DirtyFragment(ctx context.Context, label string, name string, 
 
 }
 
-func (q *Queries) KNN(ctx context.Context, vector []float64, label string, limit int64) ([]Fragment, error) {
+func (q *Queries) KNN(ctx context.Context, vector []float64, label string, limit int) ([]Fragment, error) {
 
 	const kNN = `
 SELECT id, label, name, content, embedding_model, embedding_vector, created_at, updated_at
@@ -89,7 +89,7 @@ LIMIT ?
 
 	rows, err := q.db.QueryContext(ctx, kNN,
 		label,
-		vec.EncodeFloat64s(vector),
+		vec.EncodeVector(vector),
 		limit,
 	)
 	if err != nil {
@@ -113,7 +113,7 @@ LIMIT ?
 			return nil, err
 		}
 
-		i.EmbeddingVector, err = vec.DecodeFloat64s(vecbytes)
+		i.EmbeddingVector, err = vec.DecodeVector(vecbytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed decoding embedding vector: %w", err)
 		}

@@ -5,12 +5,12 @@
 package db
 
 type Fragment struct {
-	ID              int64     `db:"id" json:"id"`
+	ID              int     `db:"id" json:"id"`
 	Label           string    `db:"label" json:"label"`
 	Name            string    `db:"name" json:"name"`
 	Content         string    `db:"content" json:"content"`
 	EmbeddingModel  string    `db:"embedding_model" json:"embedding_model"`
 	EmbeddingVector []float64 `db:"embedding_vector" json:"embedding_vector"`
-	CreatedAt       int64     `db:"created_at" json:"created_at"`
-	UpdatedAt       int64     `db:"updated_at" json:"updated_at"`
+	CreatedAt       int     `db:"created_at" json:"created_at"`
+	UpdatedAt       int     `db:"updated_at" json:"updated_at"`
 }

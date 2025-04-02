@@ -6,7 +6,7 @@ import (
 )
 
 // Manual encoding/decoding implementations without using binary package
-func EncodeFloat64s(floats []float64) []byte {
+func EncodeVector(floats []float64) []byte {
 	// Allocate a byte slice of the correct size
 	result := make([]byte, len(floats)*8)
 
@@ -31,7 +31,7 @@ func EncodeFloat64s(floats []float64) []byte {
 	return result
 }
 
-func DecodeFloat64s(data []byte) ([]float64, error) {
+func DecodeVector(data []byte) ([]float64, error) {
 	// Check if the data length is divisible by 8
 	if len(data)%8 != 0 {
 		return nil, fmt.Errorf("invalid data length: %d is not divisible by 8", len(data))

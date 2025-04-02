@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-type Config struct {
+type APICredentials struct {
 	BellmanURL     string `cli:"bellman-url"`
 	BellmanKeyName string `cli:"bellman-key-name"`
 	BellmanKey     string `cli:"bellman-key"`
@@ -28,19 +28,19 @@ type Config struct {
 	VoyageAIKey  string `cli:"voyageai-key"`
 }
 
-func New(config Config, logger *slog.Logger) (*Proxy, error) {
+func New(credentials APICredentials, logger *slog.Logger) (*Proxy, error) {
 	proxy := newProxy()
 
-	if config.AnthropicKey != "" {
-		client := anthropic.New(config.AnthropicKey)
+	if credentials.AnthropicKey != "" {
+		client := anthropic.New(credentials.AnthropicKey)
 
 		proxy.RegisterGen(client)
 
 		logger.Debug("adding llm provider", "provider", client.Provider())
 
 	}
-	if config.OpenAIKey != "" {
-		client := openai.New(config.OpenAIKey)
+	if credentials.OpenAIKey != "" {
+		client := openai.New(credentials.OpenAIKey)
 
 		proxy.RegisterGen(client)
 
@@ -51,12 +51,12 @@ func New(config Config, logger *slog.Logger) (*Proxy, error) {
 
 	}
 
-	if config.VertexAIRegion != "" && config.VertexAIProject != "" {
+	if credentials.VertexAIRegion != "" && credentials.VertexAIProject != "" {
 		var err error
 		client, err := vertexai.New(vertexai.GoogleConfig{
-			Project:    config.VertexAIProject,
-			Region:     config.VertexAIRegion,
-			Credential: config.VertexAICredential,
+			Project:    credentials.VertexAIProject,
+			Region:     credentials.VertexAIRegion,
+			Credential: credentials.VertexAICredential,
 		})
 		if err != nil {
 			return nil, err
@@ -70,16 +70,16 @@ func New(config Config, logger *slog.Logger) (*Proxy, error) {
 
 	}
 
-	if config.VoyageAIKey != "" {
-		client := voyageai.New(config.VoyageAIKey)
+	if credentials.VoyageAIKey != "" {
+		client := voyageai.New(credentials.VoyageAIKey)
 		proxy.RegisterEmbeder(client)
 		logger.Debug("adding embed provider", "provider", client.Provider())
 	}
 
-	if config.BellmanKey != "" && config.BellmanURL != "" {
-		client := bellman.New(config.BellmanURL, bellman.Key{
-			Name:  config.BellmanKeyName,
-			Token: config.BellmanKey,
+	if credentials.BellmanKey != "" && credentials.BellmanURL != "" {
+		client := bellman.New(credentials.BellmanURL, bellman.Key{
+			Name:  credentials.BellmanKeyName,
+			Token: credentials.BellmanKey,
 		})
 		proxy.RegisterEmbeder(client)
 		logger.Debug("adding embed provider", "provider", client.Provider())
