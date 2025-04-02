@@ -1,0 +1,21 @@
+Question ID	Question
+Q1	Does your organization have a formal Information Security Management System (ISMS) in place? If yes, is it certified to ISO 27001 or any other information security standard?
+Q2	Who in your organization has overall responsibility for information security, and how is this responsibility documented and communicated?
+Q3	How often does your organization conduct formal risk assessments related to information security, and what methodology do you follow?
+Q4	What controls do you have in place to manage access to systems and data that will be used to deliver services to our organization?
+Q5	How do you protect data at rest, in transit, and in use, particularly when handling our organization's data?
+Q6	What is your data retention and disposal policy, and how do you ensure secure deletion of our data upon contract termination?
+Q7	Do you have a formal business continuity plan and disaster recovery procedures? How often are they tested?
+Q8	What is your incident response process for security breaches, and how quickly will you notify us of a breach that may affect our data?
+Q9	Have you experienced any security breaches in the last 24 months that could have affected client data? If yes, what remediation steps were taken?
+Q10	What background checks do you perform on employees who will have access to our data or systems?
+Q11	How do you ensure your staff are aware of and comply with information security policies and procedures?
+Q12	Do you use subcontractors who may have access to our data? If yes, how do you ensure they meet your security standards?
+Q13	How do you manage information security risks when using cloud services or other third-party IT services?
+Q14	What technical security controls do you have in place to protect your networks and systems from unauthorized access and cyber threats?
+Q15	How do you manage vulnerabilities in your IT environment, including patch management and vulnerability scanning?
+Q16	What logging and monitoring capabilities do you have to detect and respond to security events?
+Q17	Besides ISO 27001 (if applicable), what other security certifications, standards, or regulations does your organization comply with?
+Q18	How often do you conduct independent security assessments such as penetration testing and security audits?
+Q19	Are you willing to provide copies of recent audit reports, certifications, or allow us to conduct our own security assessment?
+Q20	How does your organization stay current with evolving security threats and best practices, and how are these incorporated into your security program?
