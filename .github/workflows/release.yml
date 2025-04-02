@@ -1,0 +1,62 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on tag pushes that start with 'v' (e.g., v1.0.0)
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Fetch all history for tags
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+          check-latest: true
+
+      - name: Get the version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Get app name from go.mod
+        id: get_app_name
+        run: |
+          APP_NAME=$(basename $(grep "module" go.mod | awk '{print $2}'))
+          echo "APP_NAME=${APP_NAME}" >> $GITHUB_ENV
+
+      - name: Build for Linux
+        run: |
+          GOOS=linux GOARCH=amd64 go build -v -o ${{ env.APP_NAME }}-${{ env.VERSION }}-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -v -o ${{ env.APP_NAME }}-${{ env.VERSION }}-linux-arm64 .
+
+      - name: Build for macOS
+        run: |
+          GOOS=darwin GOARCH=amd64 go build -v -o ${{ env.APP_NAME }}-${{ env.VERSION }}-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -v -o ${{ env.APP_NAME }}-${{ env.VERSION }}-darwin-arm64 .
+
+      - name: Build for Windows
+        run: |
+          GOOS=windows GOARCH=amd64 go build -v -o ${{ env.APP_NAME }}-${{ env.VERSION }}-windows-amd64.exe .
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ env.VERSION }}
+          draft: false # Set to true if you want to review before publishing
+          prerelease: false # Set to true for pre-releases
+          generate_release_notes: true # Auto-generate release notes from commits
+          files: |
+            ${{ env.APP_NAME }}-${{ env.VERSION }}-linux-amd64
+            ${{ env.APP_NAME }}-${{ env.VERSION }}-linux-arm64
+            ${{ env.APP_NAME }}-${{ env.VERSION }}-darwin-amd64
+            ${{ env.APP_NAME }}-${{ env.VERSION }}-darwin-arm64
+            ${{ env.APP_NAME }}-${{ env.VERSION }}-windows-amd64.exe

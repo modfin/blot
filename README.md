@@ -18,27 +18,6 @@ go install github.com/modfin/blot@latest
 See examples use case walk through [example/README.md](example/README.md)
 
 
-
-## Configuration
-
-Blot can be configured using environment variables or command-line flags:
-
-| Flag | Environment Variable | Default | Description |
-|------|---------------------|---------|-------------|
-| `--db` | `BLOT_DB` | `./blot.db` | Path to database file |
-| `--bellman-url` | `BLOT_BELLMAN_URL` | | URL to Bellman service |
-| `--bellman-key` | `BLOT_BELLMAN_KEY` | | API key for Bellman |
-| `--bellman-key-name` | `BLOT_BELLMAN_KEY_NAME` | `blot` | Key name for Bellman |
-| `--vertexai-credential` | `BLOT_VERTEXAI_CREDENTIAL` | | VertexAI credentials |
-| `--vertexai-project` | `BLOT_VERTEXAI_PROJECT` | | VertexAI project |
-| `--vertexai-region` | `BLOT_VERTEXAI_REGION` | | VertexAI region |
-| `--openai-key` | `BLOT_OPENAI_KEY` | | OpenAI API key |
-| `--anthropic-key` | `BLOT_ANTHROPIC_KEY` | | Anthropic API key |
-| `--voyageai-key` | `BLOT_VOYAGEAI_KEY` | | VoyageAI API key |
-| `--embed-model` | `BLOT_EMBED_MODEL` | `OpenAI/text-embedding-3-small` | Embedding model to use |
-| `--llm-model` | `BLOT_LLM_MODEL` | `OpenAI/gpt-4o-mini` | LLM model to use |
-| `--verbose` | `BLOT_VERBOSE` | `false` | Enable verbose logging |
-
 ## Commands
 
 ### Explode
@@ -145,10 +124,10 @@ For example,
 
 ```bash
 # Add a single file with the default label
-blot --openai-key=$(cat ./files/openai.key) add document.txt
+blot --openai-key=$(cat ./openai.key) add document.txt
 
 # Add a file with a custom label
-blot --openai-key=$(cat ./files/openai.key) add --label=policies policy.md
+blot --openai-key=$(cat ./openai.key) add --label=policies policy.md
 ```
 
 ### Searching the Knowledge Base
@@ -202,3 +181,51 @@ blot explode --out=./exploded_files --with-headers data.csv
 Blot is built using Go and relies on several dependencies:
 - [Bellman](https://github.com/modfin/bellman) for LLM/embedding model integration
 
+
+
+## Help
+
+
+```text 
+NAME:
+   blot - with a rag, tool to creat a knowledge base from files and
+          answer questions about it
+
+USAGE:
+   blot [global options] command [command options] [arguments...]
+
+DESCRIPTION:
+   Bolt is a cli rag llm tool that can be used to create a knowledge base from files.
+   With the knowledge base, you can search, ask questions and fill / autocomplete a csv file.
+
+   blot is based around Bellman https://github.com/modfin/bellman which enables the user to 
+   pick an choose what llm and embedding models to use from implemented vendors, 
+   ie. OpenAI, VertexAI, Anthropic and VoyageAI or a Bellman proxy.
+
+
+COMMANDS:
+   explode  takes a row based file and explodes it into one file per row in the file
+   add      adds a file to the knowledge base
+   search   Search the knowledge base for documents
+   prompt   ask a question about the knowledge base
+   fill     
+   help, h  Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --db string                   Path to database file (default: "./blot.db") [$BLOT_DB]
+   --bellman-url string           [$BLOT_BELLMAN_URL]
+   --bellman-key string           [$BLOT_BELLMAN_KEY]
+   --bellman-key-name string     (default: "blot") [$BLOT_BELLMAN_KEY_NAME]
+   --vertexai-credential string   [$BLOT_VERTEXAI_CREDENTIAL]
+   --vertexai-project string      [$BLOT_VERTEXAI_PROJECT]
+   --vertexai-region string       [$BLOT_VERTEXAI_REGION]
+   --openai-key string            [$BLOT_OPENAI_KEY]
+   --anthropic-key string         [$BLOT_ANTHROPIC_KEY]
+   --voyageai-key string          [$BLOT_VOYAGEAI_KEY]
+   --embed-model string          (default: "OpenAI/text-embedding-3-small") [$BLOT_EMBED_MODEL]
+   --llm-model string            (default: "OpenAI/gpt-4o-mini") [$BLOT_LLM_MODEL]
+   --verbose                     (default: false) [$BLOT_VERBOSE]
+   --help, -h                    show help
+
+
+```
