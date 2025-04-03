@@ -249,7 +249,7 @@ func Query(cfg *Conf, question string) (Answer, error) {
 		}
 	})
 
-	res, err := llm.Model(cfg.LLMModel).
+	res, err := llm.
 		System(cfg.SystemPrompt).
 		Output(schema.From(Answer{})).
 		Prompt(append(prompts, prompt.Prompt{

@@ -3,3 +3,4 @@ fsw.yml
 .idea
 files
 run.sh
+*.key

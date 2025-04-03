@@ -81,6 +81,9 @@ func New(credentials APICredentials, logger *slog.Logger) (*Proxy, error) {
 			Name:  credentials.BellmanKeyName,
 			Token: credentials.BellmanKey,
 		})
+		proxy.RegisterGen(client)
+		logger.Debug("adding llm provider", "provider", client.Provider())
+
 		proxy.RegisterEmbeder(client)
 		logger.Debug("adding embed provider", "provider", client.Provider())
 	}
