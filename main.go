@@ -156,14 +156,14 @@ llm and embedding models to use from implemented vendors, ie. OpenAI, VertexAI, 
 
 						err := os.MkdirAll(dir, 0755)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to create output directory %s: %w", dir, err)
 						}
 
 						delimiter := cmd.String("delimiter")
 
 						in, err := os.Open(file)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to open input file %s: %w", file, err)
 						}
 						r := csv.NewReader(in)
 						r.LazyQuotes = true
@@ -266,7 +266,7 @@ llm and embedding models to use from implemented vendors, ie. OpenAI, VertexAI, 
 
 						dirty, err := cfg.Dao.DirtyFragment(ctx, label, name, content)
 						if err != nil {
-							return fmt.Errorf("failed to check if fragment is dirty: %w", err)
+							return fmt.Errorf("failed to check fragment dirty state for %s with label %s: %w", name, label, err)
 						}
 						if !dirty {
 							logger.Debug("skipping already existing fragment")
@@ -320,10 +320,10 @@ llm and embedding models to use from implemented vendors, ie. OpenAI, VertexAI, 
 						Name: "limit",
 						Usage: "the maximum number of documents to return. \n" +
 							"eg. --limit=5, but can be further broken down by label.\n" +
-							"--limit=QA:3 --limit=policies:2 --limit=procedures:1. \n" +
+							"--limit=QA:3 --limit=policies:2 --limit=procedures:1 \n" +
 							"Resulting in 6 fragments returned ",
 						Value:   []string{"5"},
-						Sources: cli.EnvVars("BLOT_LIMIT"),
+						Sources: cli.EnvVars("BLOT_LIMITS"),
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -356,8 +356,9 @@ llm and embedding models to use from implemented vendors, ie. OpenAI, VertexAI, 
 				Usage: "ask a question about the knowledge base",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:  "system-prompt",
-						Usage: "the system prompt to use that will be used for the prompt when RAGing.",
+						Name:    "system-prompt",
+						Usage:   "the system prompt to use that will be used for the prompt when RAGing.",
+						Sources: cli.EnvVars("BLOT_SYSTEM_PROMPT"),
 					},
 					&cli.StringSliceFlag{
 						Name: "limit",
@@ -366,7 +367,7 @@ llm and embedding models to use from implemented vendors, ie. OpenAI, VertexAI, 
 							"--limit=QA:3 --limit=policies:2 --limit=procedures:1. \n" +
 							"Resulting in 6 fragments returned ",
 						Value:   []string{"5"},
-						Sources: cli.EnvVars("BLOT_LIMIT"),
+						Sources: cli.EnvVars("BLOT_LIMITS"),
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -428,10 +429,10 @@ llm and embedding models to use from implemented vendors, ie. OpenAI, VertexAI, 
 						Name: "limit",
 						Usage: "the maximum number of documents to that is used for the prompt when RAGing. \n" +
 							"eg. --limit=5, but can be further broken down by label.\n" +
-							"--limit=QA:3 --limit=policies:2 --limit=procedures:1. \n" +
+							"--limit=QA:3 --limit=policies:2 --limit=procedures:1 \n" +
 							"Resulting in 6 fragments returned ",
 						Value:   []string{"5"},
-						Sources: cli.EnvVars("BLOT_LIMIT"),
+						Sources: cli.EnvVars("BLOT_LIMITS"),
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {

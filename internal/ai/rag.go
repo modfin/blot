@@ -216,6 +216,7 @@ func Search(cfg *Conf, question string) ([]db.Fragment, error) {
 	vector := resp.AsFloat64()
 
 	fragments := slicez.FlatMap(mapz.Entries(cfg.limits), func(e mapz.Entry[string, int]) []db.Fragment {
+		slog.Default().Debug("knn search", "label", e.Key, "k", e.Value)
 		frags, err := cfg.Dao.KNN(cfg.ctx, vector, e.Key, e.Value)
 		if err != nil {
 			slog.Default().Warn("failed to Query database for fragments", "err", err)
